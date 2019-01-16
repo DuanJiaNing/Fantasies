@@ -12,10 +12,10 @@ import org.springframework.context.annotation.Import;
  */
 @SpringBootApplication
 @Import({DynamicDataSourceBuilder.class})
-public class MultiDataSourceDemoApplication {
+public class DynamicDatasourceApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(MultiDataSourceDemoApplication.class, args);
+        SpringApplication.run(DynamicDatasourceApplication.class, args);
     }
 
 }
