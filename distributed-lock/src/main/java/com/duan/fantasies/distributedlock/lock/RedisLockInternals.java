@@ -28,6 +28,17 @@ public class RedisLockInternals {
         this.jedisPool = jedisPool;
     }
 
+    RedisLockInternals(JedisPool jedisPool, int retryAwait, int lockTimeout) {
+        this.jedisPool = jedisPool;
+        this.retryAwait = retryAwait;
+        this.lockTimeout = lockTimeout;
+    }
+
+    RedisLockInternals(JedisPool jedisPool, int lockTimeout) {
+        this.jedisPool = jedisPool;
+        this.lockTimeout = lockTimeout;
+    }
+
     String tryRedisLock(String lockId, long time, TimeUnit unit) {
         final long startMillis = System.currentTimeMillis();
         final Long millisToWait = (unit != null) ? unit.toMillis(time) : null;
@@ -55,6 +66,7 @@ public class RedisLockInternals {
                 break;
             }
 
+            // 等待时间，减少 redis 压力
             LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(retryAwait));
         }
         return lockValue;
@@ -67,7 +79,7 @@ public class RedisLockInternals {
             String value = lockId + randomId(1);
             String luaScript = ""
                     + "\nlocal r = tonumber(redis.call('SETNX', KEYS[1],ARGV[1]));"
-                    + "\nredis.call('PEXPIRE',KEYS[1],ARGV[2]);"
+                    + "\nredis.call('PEXPIRE',KEYS[1],ARGV[2]);" // 锁的失效设置。避免单点故障造成死锁
                     + "\nreturn r";
             List<String> keys = new ArrayList<String>();
             keys.add(lockId);

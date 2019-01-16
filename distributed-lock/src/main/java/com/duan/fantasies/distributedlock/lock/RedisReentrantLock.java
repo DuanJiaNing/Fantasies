@@ -27,6 +27,11 @@ public class RedisReentrantLock implements DistributedReentrantLock {
         this.internals = new RedisLockInternals(jedisPool);
     }
 
+    public RedisReentrantLock(JedisPool jedisPool, String lockId, int lockTimeout) {
+        this.lockId = lockId;
+        this.internals = new RedisLockInternals(jedisPool, lockTimeout);
+    }
+
     private static class LockData {
         final Thread owningThread;
         final String lockVal;
@@ -42,6 +47,7 @@ public class RedisReentrantLock implements DistributedReentrantLock {
         Thread currentThread = Thread.currentThread();
         LockData lockData = threadData.get(currentThread);
         if (lockData != null) {
+            // 可重入锁
             lockData.lockCount.incrementAndGet();
             return true;
         }
