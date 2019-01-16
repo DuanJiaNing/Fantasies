@@ -18,6 +18,7 @@ public class LockUtil {
     
     public static DistributedReentrantLock getDistributedReentrantLock(String lockId) {
         RedisConnectionFactory redisConnectionFactory = SpringUtil.getBean(RedisConnectionFactory.class);
+        // 注意要配置 JedisConnectionFactory，Spring 默认使用的是 LettuceConnectionFactory
         JedisConnection connection = (JedisConnection) redisConnectionFactory.getConnection();
         JedisPool jedisPool = getJedisPool(connection);
         if (jedisPool != null) {
