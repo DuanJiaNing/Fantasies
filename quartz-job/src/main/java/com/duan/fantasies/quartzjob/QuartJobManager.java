@@ -6,15 +6,11 @@ import com.duan.fantasies.quartzjob.quartz.ScheduleCornJob;
 import com.duan.fantasies.quartzjob.quartz.ScheduleSimpleJob;
 import org.quartz.*;
 import org.quartz.impl.matchers.GroupMatcher;
-import org.quartz.spi.OperableTrigger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.quartz.SchedulerFactoryBean;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Created on 2018/6/29.
@@ -30,6 +26,94 @@ public class QuartJobManager {
     /**
      * 只执行一次的任务
      */
+    public Date addSimpleJob(TriggerKey triggerKey, JobKey jobKey, Class<? extends Job> job, Date date,
+                             Map<String, Object> data, boolean replace) throws SchedulerException {
+        Scheduler scheduler = schedulerFactoryBean.getScheduler();
+        JobDetail jobDetail = getJobDetail(scheduler, jobKey, data, job, replace);
+        if (jobDetail != null) {
+            scheduler.addJob(jobDetail, true);
+        } else {
+            return null;
+        }
+
+        Trigger trigger = scheduler.getTrigger(triggerKey);
+        if (trigger != null) {
+            Trigger.TriggerState triggerState = scheduler.getTriggerState(triggerKey);
+            if (triggerState == Trigger.TriggerState.PAUSED) {
+                scheduler.resumeTrigger(triggerKey);
+            }
+            return null;
+        }
+
+        trigger = TriggerBuilder.newTrigger()
+                .withIdentity(triggerKey.getName(), triggerKey.getGroup())
+                .startAt(date)
+                .withSchedule(SimpleScheduleBuilder.simpleSchedule()
+                        .withIntervalInSeconds(1)
+                        .withRepeatCount(0))
+                .startNow()
+                .build();
+
+        // 关联触发器和任务
+        return scheduler.scheduleJob(jobDetail, trigger);
+    }
+
+    /**
+     * 只执行一次的任务
+     */
+    public Date addCornJob(TriggerKey triggerKey, JobKey jobKey, Class<? extends Job> job, String corn,
+                           Map<String, Object> data, boolean replace) throws SchedulerException {
+        Scheduler scheduler = schedulerFactoryBean.getScheduler();
+
+        JobDetail jobDetail = getJobDetail(scheduler, jobKey, data, job, replace);
+        if (jobDetail != null) {
+            scheduler.addJob(jobDetail, true);
+        } else {
+            return null;
+        }
+
+        CronTrigger trigger = (CronTrigger) scheduler.getTrigger(triggerKey);
+        ScheduleBuilder<CronTrigger> scheduleBuilder = CronScheduleBuilder.cronSchedule(corn);
+        if (trigger == null) {
+
+            // 新建 corn trigger
+            trigger = TriggerBuilder.newTrigger()
+                    .withIdentity(triggerKey.getName(), triggerKey.getGroup())
+                    .withSchedule(scheduleBuilder)
+                    .build();
+
+        } else { // trigger 已存在，那么更新相应的定时设置
+
+            // 按新的 cronExpression 表达式重新构建 trigger
+            trigger = trigger.getTriggerBuilder()
+                    .withIdentity(triggerKey)
+                    .withSchedule(scheduleBuilder)
+                    .build();
+        }
+
+        return scheduler.scheduleJob(jobDetail, trigger);
+
+    }
+
+    private JobDetail getJobDetail(Scheduler scheduler, JobKey jobKey, Map<String, Object> data, Class<? extends Job> job, boolean replace) throws SchedulerException {
+
+        JobDetail jobDetail = scheduler.getJobDetail(jobKey);
+        if (jobDetail == null || (!jobDetail.getJobClass().equals(job) && replace)) {
+            jobDetail = JobBuilder.newJob(job)
+                    .withIdentity(jobKey.getName(), jobKey.getGroup())
+                    .build();
+
+            if (data != null && data.size() > 0) {
+                JobDataMap jobDataMap = jobDetail.getJobDataMap();
+                for (Map.Entry<String, Object> entry : data.entrySet()) {
+                    jobDataMap.put(entry.getKey(), entry.getValue());
+                }
+            }
+        }
+
+        return jobDetail;
+    }
+
     public Date addSimpleJob(ScheduleSimpleJob quartzSimpleJob, Class<? extends Job> clazz) {
         Scheduler scheduler = schedulerFactoryBean.getScheduler();
 
@@ -47,20 +131,14 @@ public class QuartJobManager {
 
     /**
      * 添加一个 corn 任务到 quartz
-     *
-     * @return first time at which the <code>Trigger</code> will be fired
-     * @see OperableTrigger#computeFirstFireTime
      */
     public Date addCronJob(ScheduleCornJob quartzCornJob, Class<? extends Job> clazz) {
 
-        // 代表一个 Quartz 的独立运行容器
-        // 获取调度器
         Scheduler scheduler = schedulerFactoryBean.getScheduler();
 
-        // 唯一标识一个触发器
         JobIdentity identity = quartzCornJob.getIdentity();
         TriggerKey triggerKey = TriggerKey.triggerKey(identity.getName(), identity.getGroup());
-        CronTrigger trigger;
+        CronTrigger trigger; // org.quartz.impl.triggers.CronTriggerImpl
         try {
             trigger = (CronTrigger) scheduler.getTrigger(triggerKey);
         } catch (SchedulerException e) {
@@ -100,7 +178,8 @@ public class QuartJobManager {
         }
     }
 
-    private Date scheduleJob(Class<? extends Job> clazz, JobIdentity identity, ScheduleJob scheduleJob, Scheduler scheduler,
+    private Date scheduleJob(Class<? extends Job> clazz, JobIdentity identity, ScheduleJob
+            scheduleJob, Scheduler scheduler,
                              Trigger trigger) {
         // Quartz 在每次执行 Job 时，都重新创建一个 Job 实例，所以它不直接接受一个 Job 的实例，相反它接收一个 Job 实现类
         JobDetail jobDetail = JobBuilder
