@@ -1,0 +1,2 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+  com.duan.fantasies.shm.core.HandlerMethodPostProcessorAutoConfiguration
