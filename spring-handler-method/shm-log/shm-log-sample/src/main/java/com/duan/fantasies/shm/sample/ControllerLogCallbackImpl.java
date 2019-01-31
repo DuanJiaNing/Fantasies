@@ -11,15 +11,16 @@ import org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHan
  * @author DuanJiaNing
  */
 @Component
+@Slf4j
 public class ControllerLogCallbackImpl implements ControllerLogCallback {
 
     @Override
     public void handleDefaultLog(Object result, ServletInvocableHandlerMethod handlerMethod, Object[] args) {
-//        log.error(handlerMethod.toString());
+        log.error(handlerMethod.toString());
     }
 
     @Override
     public void handleCustomLog(String content, String[] tags, Object[] datas, Object result, ServletInvocableHandlerMethod handlerMethod, Object[] args) {
-//        log.error(handlerMethod.toString() + ":" + content);
+        log.error(handlerMethod.toString() + ":" + content);
     }
 }
