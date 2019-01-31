@@ -23,6 +23,9 @@ public class HandlerMethodPostProcessorAutoConfiguration implements WebMvcRegist
     @Autowired
     private HandlerMethodPostProcessorComposite handlerMethodPostProcessors;
 
+    @Autowired(required = false)
+    private HandlerMethodVerify handlerMethodVerify;
+
     @Bean
     public HandlerMethodPostProcessorComposite handlerMethodPostProcessors(List<HandlerMethodPostProcessor> processors) {
         return new HandlerMethodPostProcessorComposite(processors);
@@ -33,7 +36,7 @@ public class HandlerMethodPostProcessorAutoConfiguration implements WebMvcRegist
         return new RequestMappingHandlerAdapter() {
             @Override
             protected ServletInvocableHandlerMethod createInvocableHandlerMethod(HandlerMethod handlerMethod) {
-                return new HandlerMethodWrapper(handlerMethod, handlerMethodPostProcessors);
+                return new HandlerMethodWrapper(handlerMethodVerify, handlerMethod, handlerMethodPostProcessors);
             }
         };
     }

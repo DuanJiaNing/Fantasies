@@ -14,10 +14,12 @@ import java.util.List;
 public class HandlerMethodWrapper extends ServletInvocableHandlerMethod {
 
     private final HandlerMethodPostProcessorComposite handlerMethodPostProcessors;
+    private final HandlerMethodVerify handlerMethodVerify;
 
-    public HandlerMethodWrapper(HandlerMethod handlerMethod, HandlerMethodPostProcessorComposite handlerMethodPostProcessors) {
+    public HandlerMethodWrapper(HandlerMethodVerify handlerMethodVerify, HandlerMethod handlerMethod, HandlerMethodPostProcessorComposite handlerMethodPostProcessors) {
         super(handlerMethod);
         this.handlerMethodPostProcessors = handlerMethodPostProcessors;
+        this.handlerMethodVerify = handlerMethodVerify;
     }
 
     // 该方法调用时 HandlerMethod 的参数装配完成，在此时可对参数进行验证
@@ -25,8 +27,17 @@ public class HandlerMethodWrapper extends ServletInvocableHandlerMethod {
     @Override
     protected Object doInvoke(Object... args) throws Exception {
         before(args);
+
+        if (handlerMethodVerify != null) {
+            Object errorObj;
+            if ((errorObj = handlerMethodVerify.postVerifyBeforeInvoke(this, args)) != null) {
+                return errorObj;
+            }
+        }
+
         Object result = super.doInvoke(args);
         after(result, args);
+
         return result;
     }
 
